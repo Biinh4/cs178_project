@@ -122,6 +122,102 @@ class Represent:
         plt.show()
 
 
-    def train(self):
-        cnn = CNN()
-        cnn.fit(self.training_data_X[:250], self.training_data_y[:250])
+    def train_epochs(self):
+        epochs = [1, 10, 100, 150, 200, 250]
+
+        tr_err_rate = []
+        ve_err_rate = []
+
+        for epoch in epochs:
+            cnn = CNN()
+            cnn.fit(self.training_data_X, self.training_data_y, max_iter=epoch)
+
+            tr_pred = cnn.predict(self.training_data_X)
+            ve_pred = cnn.predict(self.validation_data_X)
+
+            tr_err_rate.append(np.mean(tr_pred != self.training_data_y))
+            ve_err_rate.append(np.mean(ve_pred != self.validation_data_y))
+
+        # Plot training and validation error rates
+        plt.figure(figsize=(8, 5))
+        plt.plot(epochs, tr_err_rate, marker='o', label='Training Error')
+        plt.plot(epochs, ve_err_rate, marker='x', linestyle='dashed', label='Validation Error')
+
+        plt.xlabel("Number of Epochs")
+        plt.ylabel("Error Rate")
+        plt.title("Training & Validation Error vs. Number of Epochs")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+        return tr_err_rate, ve_err_rate
+
+    
+    def train_learning_rate(self):
+        learning_rates = [0.001, 0.01, 0.025, 0.05, 0.075, 0.1]
+        
+        tr_err_rate = []
+        ve_err_rate = []
+
+        for learning_rate in learning_rates:
+            cnn = CNN()
+            cnn.fit(self.training_data_X, self.training_data_y, learning_rate_init=learning_rate)
+
+            tr_pred = cnn.predict(self.training_data_X)
+            ve_pred = cnn.predict(self.validation_data_X)
+
+            tr_err_rate.append(np.mean(tr_pred != self.training_data_y))
+            ve_err_rate.append(np.mean(ve_pred != self.validation_data_y))
+        
+        plt.figure(figsize=(8, 5))
+        plt.plot(learning_rates, tr_err_rate, marker='o', label='Training Error')
+        plt.plot(learning_rates, ve_err_rate, marker='x', linestyle='dashed', label='Validation Error')
+
+        plt.xscale("log")  # Log scale for better visualization
+        plt.xlabel("Learning Rate")
+        plt.ylabel("Error Rate")
+        plt.title("Training & Validation Error vs. Learning Rate")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+
+    # MOST EXPENSIVE
+    def train_optimally(self):
+        learning_rates = [0.001, 0.01, 0.025, 0.05, 0.075, 0.1]
+        epochs = [1, 10, 100, 150, 200, 250]
+        
+    
+        results = {}
+
+        for epoch in epochs:
+            tr_err_rate = []
+            ve_err_rate = []
+
+            for learning_rate in learning_rates:
+
+                cnn = CNN()
+                cnn.fit(self.training_data_X, self.training_data_y, max_iter=epoch, learning_rate_init=learning_rate)
+
+                tr_pred = cnn.predict(self.training_data_X)
+                ve_pred = cnn.predict(self.validation_data_X)
+
+                tr_err_rate.append(np.mean(tr_pred != self.training_data_y))
+                ve_err_rate.append(np.mean(ve_pred != self.validation_data_y))
+        
+        results[epoch] = (tr_err_rate, ve_err_rate)
+
+        plt.figure(figsize=(10, 6))
+
+        for epoch in epochs:
+            plt.plot(learning_rates, results[epoch][0], marker='o', label=f"Train Error (Epochs={epoch})")
+            plt.plot(learning_rates, results[epoch][1], marker='x', linestyle='dashed', label=f"Validation Error (Epochs={epoch})")
+
+        plt.xscale("log")  # Use log scale for better visualization
+        plt.xlabel("Learning Rate")
+        plt.ylabel("Error Rate")
+        plt.title("Training & Validation Error vs. Learning Rate")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+            
