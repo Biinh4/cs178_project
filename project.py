@@ -74,7 +74,7 @@ class train_nn:
 
     
     def train_learning_rate(self):
-        learning_rates = [0.001, 0.025, 0.05, 0.1, 0.25, 0.5]
+        learning_rates = [0.001, 0.0025, 0.005, 0.01, 0.015, 0.02]
 
         training_errors = []
         testing_errors = []
@@ -108,7 +108,7 @@ class train_nn:
 
 
     def train_layers(self):
-        layers = [(64, 32, 16), (32, 16, 4), (128, )]
+        layers = [(128, 64, 32), (64, 32, 16), (256, 128, 64), (100, 50, 25)]
 
         training_errors = []
         testing_errors = []
@@ -144,10 +144,11 @@ class train_nn:
     def train_optimal(self):
         
         # Y
-        learning_rates = [0.001, 0.025, 0.05, 0.1, 0.25, 0.5]
+        learning_rates = [0.001, 0.0025, 0.005, 0.01, 0.015, 0.02]
 
         # X
-        layers = [(64, 32, 16), (32, 16, 4), (128, )]
+        layers = [(128, 64, 32), (64, 32, 16), (256, 128, 64), (100, 50, 25)]
+
 
         training_errors = []
         testing_errors = []
@@ -178,7 +179,7 @@ class train_nn:
                 training_errors.append(np.mean(tr_y_pred_sgd != self.y_train))
                 testing_errors.append(np.mean(tst_y_pred_sgd != self.y_test))
         
-        return (layers, training_errors), (layers, testing_errors)
+        return (layers, learning_rates, training_errors), (layers, learning_rates, testing_errors)
     
 
     def repesent_learning_rate(self):
