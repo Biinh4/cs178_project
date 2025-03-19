@@ -4,9 +4,10 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import accuracy_score
 import numpy as np
-
+import time
 import matplotlib.pyplot as plt
 
 
@@ -47,7 +48,10 @@ class train_nn:
 
 
     def basic_train(self):
+
         # Define MLP Classifier with SGD
+
+        start_time = time.time()
         mlp_sgd = Pipeline([
             ("preprocessor", self.preprocessor),
             ("classifier", MLPClassifier(
@@ -55,7 +59,7 @@ class train_nn:
                 activation="relu",  # Activation function
                 solver="sgd",  # Use Stochastic Gradient Descent
                 learning_rate="adaptive",  # Adjusts learning rate dynamically
-                learning_rate_init=0.01,  # Initial learning rate
+                learning_rate_init=0.001,  # Initial learning rate
                 momentum=0.9,  # Helps stabilize updates
                 max_iter=500,  # More iterations since SGD is noisier
                 random_state=42
@@ -66,11 +70,19 @@ class train_nn:
         mlp_sgd.fit(self.X_train, self.y_train)
 
         # Predictions
-        y_pred_sgd = mlp_sgd.predict(self.X_test)
+        tr_y_pred_sgd = mlp_sgd.predict(self.X_train)
+        ve_y_pred_sgd = mlp_sgd.predict(self.X_test)
 
         # Accuracy
-        accuracy_sgd = accuracy_score(self.y_test, y_pred_sgd)
-        print(f"Test Accuracy (SGD): {accuracy_sgd:.4f}")
+        print(f"Training Error rate (SGD): {np.mean(tr_y_pred_sgd != self.y_train)}")
+        print(f"Validation Error rate (SGD): {np.mean(ve_y_pred_sgd != self.y_test)}")
+
+        end_time = time.time()
+        elapsed_time = end_time - start_time  # Compute elapsed time
+
+        print(f"Training took {elapsed_time:.2f} seconds")
+        print("Most optimal layers: (64, 32, 16).")
+        print("Most optimal learning rate: 0.001.")
 
     
     def train_learning_rate(self):
@@ -114,6 +126,7 @@ class train_nn:
         testing_errors = []
 
         for layer_config in layers:
+            print(training_errors)
             mlp_sgd = Pipeline([
                 ("preprocessor", self.preprocessor),
                 ("classifier", MLPClassifier(
@@ -121,7 +134,7 @@ class train_nn:
                     activation="relu",  # Activation function
                     solver="sgd",  # Use Stochastic Gradient Descent
                     learning_rate="adaptive",  # Adjusts learning rate dynamically
-                    learning_rate_init=0.01,  # Initial learning rate
+                    learning_rate_init=0.001,  # Initial learning rate
                     momentum=0.9,  # Helps stabilize updates
                     max_iter=500,  # More iterations since SGD is noisier
                     random_state=42
@@ -142,31 +155,31 @@ class train_nn:
     
 
     def train_optimal(self):
-        
-        # Y
         learning_rates = [0.001, 0.0025, 0.005, 0.01, 0.015, 0.02]
-
-        # X
         layers = [(128, 64, 32), (64, 32, 16), (256, 128, 64), (100, 50, 25)]
 
+        training_errors = {}
+        testing_errors = {}
 
-        training_errors = []
-        testing_errors = []
+        # Preprocess once
 
         for layer_config in layers:
+            training_errors[layer_config] = []
+            testing_errors[layer_config] = []
+
             for learning_rate in learning_rates:
                 mlp_sgd = Pipeline([
-                    ("preprocessor", self.preprocessor),
-                    ("classifier", MLPClassifier(
-                        hidden_layer_sizes=layer_config,  # Layer configuration
-                        activation="relu",  # Activation function
-                        solver="sgd",  # Use Stochastic Gradient Descent
-                        learning_rate=learning_rate,  # Adjusts learning rate dynamically
-                        learning_rate_init=0.01,  # Initial learning rate
-                        momentum=0.9,  # Helps stabilize updates
-                        max_iter=500,  # More iterations since SGD is noisier
-                        random_state=42
-                    ))
+                ("preprocessor", self.preprocessor),
+                ("classifier", MLPClassifier(
+                    hidden_layer_sizes=layer_config,  # Layer configuration
+                    activation="relu",  # Activation function
+                    solver="sgd",  # Use Stochastic Gradient Descent
+                    learning_rate="adaptive",  # Adjusts learning rate dynamically
+                    learning_rate_init=learning_rate,  # Initial learning rate
+                    momentum=0.9,  # Helps stabilize updates
+                    max_iter=500,  # More iterations since SGD is noisier
+                    random_state=42
+                ))
                 ])
 
                 # Train the model
@@ -176,11 +189,16 @@ class train_nn:
                 tr_y_pred_sgd = mlp_sgd.predict(self.X_train)
                 tst_y_pred_sgd = mlp_sgd.predict(self.X_test)
 
-                training_errors.append(np.mean(tr_y_pred_sgd != self.y_train))
-                testing_errors.append(np.mean(tst_y_pred_sgd != self.y_test))
+                # Calculate errors
+                train_error = np.mean(tr_y_pred_sgd != self.y_train)
+                test_error = np.mean(tst_y_pred_sgd != self.y_test)
+
+                # Store results
+                training_errors[layer_config].append(train_error)
+                testing_errors[layer_config].append(test_error)
+
+        return training_errors, testing_errors
         
-        return (layers, learning_rates, training_errors), (layers, learning_rates, testing_errors)
-    
 
     def repesent_learning_rate(self):
         training, testing = self.train_learning_rate()
@@ -200,13 +218,57 @@ class train_nn:
     def represent_layers(self):
         training, testing = self.train_layers()
 
-        plt.figure(figsize=(8, 5))
-        plt.plot(training[0], training[1], marker='o', linestyle='-', color='b', label="Training Error")
-        plt.plot(testing[0], testing[1], marker='s', linestyle='-', color='r', label="Testing Error")
-        plt.xscale("log")  # Log scale for better visualization
-        plt.xlabel("Learning Rate")
+        layer_configs, training_errors = training
+        _, testing_errors = testing
+
+        # Convert tuples to strings for categorical x-axis labels
+        x_labels = [str(layer) for layer in layer_configs]
+
+        # Create x-axis indices
+        x_indices = np.arange(len(x_labels))  # Numeric positions
+
+        # Plot Training and Testing Errors
+        plt.figure(figsize=(8, 6))
+        plt.plot(x_indices, training_errors, 'bo-', label="Training Error")
+        plt.plot(x_indices, testing_errors, 'rs-', label="Testing Error")
+
+        # Set x-ticks to the string labels
+        plt.xticks(x_indices, x_labels, rotation=30, ha="right")
+
+        # Labeling
+        plt.xlabel("Layer Configuration (Hidden Layers)")
         plt.ylabel("Error Rate")
-        plt.title("Training vs Testing Error for Different Learning Rates")
+        plt.title("Training vs Testing Error for Different Layer Configurations")
         plt.legend()
-        plt.grid()
+        plt.show()
+
+
+    def represent_optimal(self):
+        training_errors, testing_errors = self.train_optimal()
+        learning_rates = [0.001, 0.0025, 0.005, 0.01, 0.015, 0.02]
+        layers = [(128, 64, 32), (64, 32, 16), (256, 128, 64), (100, 50, 25)]
+
+        x_labels = [str(layer) for layer in layers]
+        x_indices = np.arange(len(layers))
+
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Plot Training Errors
+        for i, lr in enumerate(learning_rates):
+            ax.scatter(x_indices, [lr] * len(layers), training_errors[:, i], label=f"LR {lr} (Train)", marker='o')
+
+        # Plot Testing Errors
+        for i, lr in enumerate(learning_rates):
+            ax.scatter(x_indices, [lr] * len(layers), testing_errors[:, i], label=f"LR {lr} (Test)", marker='s')
+
+        # Labels
+        ax.set_xticks(x_indices)
+        ax.set_xticklabels(x_labels, rotation=20)
+        ax.set_xlabel("Layers")
+        ax.set_ylabel("Learning Rate")
+        ax.set_zlabel("Error Rate")
+        ax.set_title("Error Rate vs Learning Rate and Layers")
+
+        plt.legend()
         plt.show()
